@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inrtec Labs — Invoice Generator</title>
+<style>
+  :root {
+    --ink: #2f2b2b;
+    --muted: #6b7280;
+    --line: #e2e5e9;
+    --accent: #6d53f2;
+    --accent-soft: #f1eefe;
+    --paper: #ffffff;
+    --bg: #f4f5f7;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    min-height: 100vh;
+  }
+  .panel {
+    background: #fff;
+    border-right: 1px solid var(--line);
+    padding: 24px;
+    overflow-y: auto;
+    max-height: 100vh;
+  }
+  .panel h1 {
+    font-size: 18px;
+    margin: 0 0 4px;
+  }
+  .panel .sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  fieldset {
+    border: none;
+    padding: 0;
+    margin: 0 0 20px;
+  }
+  legend {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+    padding: 0;
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin: 10px 0 4px;
+  }
+  input, select, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--ink);
+    background: #fff;
+  }
+  textarea { resize: vertical; min-height: 50px; }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  .line-item {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .line-item .remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .line-item .remove:hover { background: #fdecec; color: #c0392b; }
+  .btn {
+    display: inline-block;
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .btn:hover { background: #f8f9fa; }
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #5a3fe0; }
+  .btn-add {
+    border-style: dashed;
+    color: var(--accent);
+  }
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 24px;
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    padding-top: 12px;
+  }
+
+  /* Preview */
+  .preview-wrap {
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .invoice {
+    background: var(--paper);
+    width: 800px;
+    max-width: 100%;
+    padding: 56px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    border-radius: 4px;
+  }
+  .inv-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 3px solid var(--accent);
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-logo {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+  .brand-name {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+  .brand-tagline {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .panel-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .panel-logo .logo-svg { width: 22px; height: 22px; }
+  .inv-title {
+    text-align: right;
+  }
+  .inv-title h2 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+  }
+  .inv-title .num {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+  .status-badge {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .status-paid { background: #e6f6ec; color: #1e7a3d; }
+  .status-unpaid { background: #fdecec; color: #c0392b; }
+  .status-partial { background: #fff6e0; color: #a9720f; }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+  .meta-block .label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .meta-block .value {
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-line;
+  }
+  .dates-row {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 32px;
+  }
+  .dates-row .meta-block .value { font-size: 14px; }
+
+  table.items {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+  }
+  table.items th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    border-bottom: 2px solid var(--line);
+    padding: 8px 6px;
+  }
+  table.items th.num, table.items td.num { text-align: right; }
+  table.items td {
+    padding: 12px 6px;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .totals {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 32px;
+  }
+  .totals table { border-collapse: collapse; width: 280px; }
+  .totals td {
+    padding: 6px 4px;
+    font-size: 14px;
+  }
+  .totals td.label { color: var(--muted); }
+  .totals td.num { text-align: right; }
+  .totals tr.grand td {
+    border-top: 2px solid var(--ink);
+    font-weight: 800;
+    font-size: 17px;
+    padding-top: 10px;
+  }
+
+  .payment-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    background: var(--accent-soft);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 28px;
+  }
+  .payment-grid .label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .payment-grid .value { font-size: 14px; }
+
+  .notes {
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+  }
+  .notes .label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .notes .value {
+    font-size: 13px;
+    color: #444;
+    white-space: pre-line;
+    line-height: 1.5;
+  }
+
+  @media print {
+    .panel { display: none; }
+    .app { display: block; }
+    .preview-wrap { padding: 0; }
+    .invoice { box-shadow: none; width: 100%; padding: 0; }
+    body { background: #fff; }
+  }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .panel { max-height: none; border-right: none; border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="panel" id="panel">
+    <div class="panel-logo">
+      <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1499.999933"><g transform="matrix(1, 0, 0, 1, 378, 34)"><path stroke-linecap="butt" transform="matrix(2.778082, 0, 0, 2.778082, 151.020573, 114.638894)" fill="none" stroke-linejoin="miter" d="M -0.000375127 13.500552 L 50.904521 13.500552 C 52.760567 13.500552 54.540685 14.237346 55.853979 15.55064 C 57.165866 16.862527 57.904067 18.644051 57.904067 20.500098 L 57.904067 341.251701 C 57.904067 345.117059 61.038255 348.251247 64.903613 348.251247 L 188.701935 348.251247 C 192.567293 348.251247 195.701481 351.385435 195.701481 355.250793 L 195.701481 409.188638 C 195.701481 413.053996 192.567293 416.188184 188.701935 416.188184 L 31.594603 416.188184 C 27.727839 416.188184 24.593651 413.053996 24.593651 409.188638 L 24.593651 379.915124 " stroke="#2f2b2b" stroke-width="27" stroke-opacity="1" stroke-miterlimit="4"/><path stroke-linecap="butt" transform="matrix(0, -2.778082, 2.778082, 0, 11.78581, 1317.347296)" fill="none" stroke-linejoin="miter" d="M -0.000129818 14.999999 L 432.650041 14.999999 " stroke="#6d53f2" stroke-width="30" stroke-opacity="1" stroke-miterlimit="4"/></g></svg>
+      <h1>Invoice Generator</h1>
+    </div>
+    <div class="sub">Inrtec Labs</div>
+
+    <fieldset>
+      <legend>Invoice Details</legend>
+      <div class="row">
+        <div>
+          <label for="invNumber">Invoice #</label>
+          <input id="invNumber" value="INV-2026-001">
+        </div>
+        <div>
+          <label for="invStatus">Payment Status</label>
+          <select id="invStatus">
+            <option value="Unpaid">Unpaid</option>
+            <option value="Paid" selected>Paid</option>
+            <option value="Partially Paid">Partially Paid</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="invDate">Invoice Date</label>
+          <input id="invDate" type="date">
+        </div>
+        <div>
+          <label for="dueDate">Due Date</label>
+          <input id="dueDate" type="date">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Your Business</legend>
+      <label for="bizName">Business Name</label>
+      <input id="bizName" value="Inrtec Labs">
+      <label for="bizInfo">Contact Info (email, phone, address)</label>
+      <textarea id="bizInfo">inrteclabs@gmail.com</textarea>
+    </fieldset>
+
+    <fieldset>
+      <legend>Client</legend>
+      <label for="clientName">Client / Business Name</label>
+      <input id="clientName" placeholder="Client Name">
+      <label for="clientInfo">Client Email / Address</label>
+      <textarea id="clientInfo" placeholder="client@example.com&#10;123 Main St, City, ST"></textarea>
+    </fieldset>
+
+    <fieldset>
+      <legend>Line Items</legend>
+      <div id="lineItems"></div>
+      <button class="btn btn-add" id="addItem" type="button">+ Add Line Item</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Tax</legend>
+      <label for="taxPct">Tax Rate (%)</label>
+      <input id="taxPct" type="number" min="0" step="0.01" value="0">
+    </fieldset>
+
+    <fieldset>
+      <legend>Payment</legend>
+      <label for="payMethod">Payment Method</label>
+      <select id="payMethod">
+        <option>N/A</option>
+        <option>Stripe</option>
+        <option>ACH</option>
+        <option>Check</option>
+        <option>Credit Card</option>
+        <option>Cash</option>
+        <option>PayPal</option>
+        <option>Venmo</option>
+        <option>Zelle</option>
+      </select>
+      <label for="payDate">Payment Date</label>
+      <input id="payDate" type="date">
+    </fieldset>
+
+    <fieldset>
+      <legend>Notes</legend>
+      <textarea id="notes" rows="3">Thank you for your business!</textarea>
+    </fieldset>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="printBtn" type="button">Print / Save as PDF</button>
+    </div>
+  </div>
+
+  <div class="preview-wrap">
+    <div class="invoice" id="invoice">
+      <div class="inv-header">
+        <div class="brand">
+          <svg class="brand-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1499.999933"><g transform="matrix(1, 0, 0, 1, 378, 34)"><path stroke-linecap="butt" transform="matrix(2.778082, 0, 0, 2.778082, 151.020573, 114.638894)" fill="none" stroke-linejoin="miter" d="M -0.000375127 13.500552 L 50.904521 13.500552 C 52.760567 13.500552 54.540685 14.237346 55.853979 15.55064 C 57.165866 16.862527 57.904067 18.644051 57.904067 20.500098 L 57.904067 341.251701 C 57.904067 345.117059 61.038255 348.251247 64.903613 348.251247 L 188.701935 348.251247 C 192.567293 348.251247 195.701481 351.385435 195.701481 355.250793 L 195.701481 409.188638 C 195.701481 413.053996 192.567293 416.188184 188.701935 416.188184 L 31.594603 416.188184 C 27.727839 416.188184 24.593651 413.053996 24.593651 409.188638 L 24.593651 379.915124 " stroke="#2f2b2b" stroke-width="27" stroke-opacity="1" stroke-miterlimit="4"/><path stroke-linecap="butt" transform="matrix(0, -2.778082, 2.778082, 0, 11.78581, 1317.347296)" fill="none" stroke-linejoin="miter" d="M -0.000129818 14.999999 L 432.650041 14.999999 " stroke="#6d53f2" stroke-width="30" stroke-opacity="1" stroke-miterlimit="4"/></g></svg>
+          <div>
+            <div class="brand-name" id="pBizName">Inrtec Labs</div>
+            <div class="brand-tagline" id="pBizInfo">inrteclabs@gmail.com</div>
+          </div>
+        </div>
+        <div class="inv-title">
+          <h2>INVOICE</h2>
+          <div class="num" id="pInvNumber">INV-2026-001</div>
+          <div><span class="status-badge status-paid" id="pStatus">Paid</span></div>
+        </div>
+      </div>
+
+      <div class="dates-row">
+        <div class="meta-block">
+          <div class="label">Invoice Date</div>
+          <div class="value" id="pInvDate">—</div>
+        </div>
+        <div class="meta-block">
+          <div class="label">Due Date</div>
+          <div class="value" id="pDueDate">—</div>
+        </div>
+      </div>
+
+      <div class="meta-grid">
+        <div class="meta-block">
+          <div class="label">From</div>
+          <div class="value" id="pFrom">Inrtec Labs</div>
+        </div>
+        <div class="meta-block">
+          <div class="label">Bill To</div>
+          <div class="value" id="pTo">Client Name</div>
+        </div>
+      </div>
+
+      <table class="items">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="num">Qty</th>
+            <th class="num">Unit Price</th>
+            <th class="num">Amount</th>
+          </tr>
+        </thead>
+        <tbody id="pItems"></tbody>
+      </table>
+
+      <div class="totals">
+        <table>
+          <tr>
+            <td class="label">Subtotal</td>
+            <td class="num" id="pSubtotal">$0.00</td>
+          </tr>
+          <tr id="pTaxRow">
+            <td class="label" id="pTaxLabel">Tax (0%)</td>
+            <td class="num" id="pTax">$0.00</td>
+          </tr>
+          <tr class="grand">
+            <td class="label">Total</td>
+            <td class="num" id="pTotal">$0.00</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="payment-grid">
+        <div>
+          <div class="label">Payment Method</div>
+          <div class="value" id="pPayMethod">N/A</div>
+        </div>
+        <div>
+          <div class="label">Payment Date</div>
+          <div class="value" id="pPayDate">—</div>
+        </div>
+        <div>
+          <div class="label">Status</div>
+          <div class="value" id="pPayStatus">Paid</div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <div class="label">Notes</div>
+        <div class="value" id="pNotes">Thank you for your business!</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const lineItemsEl = document.getElementById('lineItems');
+  const pItemsEl = document.getElementById('pItems');
+
+  function fmtMoney(n) {
+    if (isNaN(n)) n = 0;
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function fmtDate(val) {
+    if (!val) return '—';
+    const [y, m, d] = val.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return dt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
+  let itemCount = 0;
+
+  function addLineItem(desc, qty, price) {
+    itemCount++;
+    const id = 'item-' + itemCount;
+    const wrap = document.createElement('div');
+    wrap.className = 'line-item';
+    wrap.dataset.id = id;
+    wrap.innerHTML = `
+      <button type="button" class="remove" title="Remove">&times;</button>
+      <label>Description</label>
+      <input class="li-desc" value="${desc || ''}">
+      <div class="row">
+        <div>
+          <label>Qty</label>
+          <input class="li-qty" type="number" min="0" step="1" value="${qty != null ? qty : 1}">
+        </div>
+        <div>
+          <label>Unit Price</label>
+          <input class="li-price" type="number" min="0" step="0.01" value="${price != null ? price : 0}">
+        </div>
+      </div>
+    `;
+    lineItemsEl.appendChild(wrap);
+    wrap.querySelector('.remove').addEventListener('click', () => {
+      wrap.remove();
+      render();
+    });
+    wrap.querySelectorAll('input').forEach(inp => inp.addEventListener('input', render));
+  }
+
+  document.getElementById('addItem').addEventListener('click', () => {
+    addLineItem('', 1, 0);
+    render();
+  });
+
+  function getItems() {
+    return Array.from(lineItemsEl.children).map(wrap => ({
+      desc: wrap.querySelector('.li-desc').value || '(no description)',
+      qty: parseFloat(wrap.querySelector('.li-qty').value) || 0,
+      price: parseFloat(wrap.querySelector('.li-price').value) || 0
+    }));
+  }
+
+  function statusClass(status) {
+    if (status === 'Paid') return 'status-paid';
+    if (status === 'Partially Paid') return 'status-partial';
+    return 'status-unpaid';
+  }
+
+  function render() {
+    const bizName = document.getElementById('bizName').value || 'Your Business';
+    const bizInfo = document.getElementById('bizInfo').value;
+    const clientName = document.getElementById('clientName').value || 'Client Name';
+    const clientInfo = document.getElementById('clientInfo').value;
+    const invNumber = document.getElementById('invNumber').value;
+    const invDate = document.getElementById('invDate').value;
+    const dueDate = document.getElementById('dueDate').value;
+    const status = document.getElementById('invStatus').value;
+    const taxPct = parseFloat(document.getElementById('taxPct').value) || 0;
+    const payMethod = document.getElementById('payMethod').value;
+    const payDate = document.getElementById('payDate').value;
+    const notes = document.getElementById('notes').value;
+
+    document.getElementById('pBizName').textContent = bizName;
+    document.getElementById('pBizInfo').textContent = bizInfo;
+    document.getElementById('pFrom').textContent = bizName + (bizInfo ? '\n' + bizInfo : '');
+    document.getElementById('pTo').textContent = clientName + (clientInfo ? '\n' + clientInfo : '');
+    document.getElementById('pInvNumber').textContent = invNumber;
+    document.getElementById('pInvDate').textContent = fmtDate(invDate);
+    document.getElementById('pDueDate').textContent = fmtDate(dueDate);
+
+    const badge = document.getElementById('pStatus');
+    badge.textContent = status;
+    badge.className = 'status-badge ' + statusClass(status);
+    document.getElementById('pPayStatus').textContent = status;
+
+    document.getElementById('pPayMethod').textContent = payMethod;
+    document.getElementById('pPayDate').textContent = payDate ? fmtDate(payDate) : '—';
+    document.getElementById('pNotes').textContent = notes;
+
+    const items = getItems();
+    pItemsEl.innerHTML = '';
+    let subtotal = 0;
+    items.forEach(it => {
+      const amount = it.qty * it.price;
+      subtotal += amount;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${it.desc}</td>
+        <td class="num">${it.qty}</td>
+        <td class="num">${fmtMoney(it.price)}</td>
+        <td class="num">${fmtMoney(amount)}</td>
+      `;
+      pItemsEl.appendChild(tr);
+    });
+
+    const tax = subtotal * (taxPct / 100);
+    const total = subtotal + tax;
+
+    document.getElementById('pSubtotal').textContent = fmtMoney(subtotal);
+    document.getElementById('pTaxLabel').textContent = `Tax (${taxPct}%)`;
+    document.getElementById('pTax').textContent = fmtMoney(tax);
+    document.getElementById('pTotal').textContent = fmtMoney(total);
+
+    const taxRow = document.getElementById('pTaxRow');
+    taxRow.style.display = taxPct > 0 ? '' : 'none';
+
+    document.title = (invNumber ? invNumber + ' — ' : '') + (clientName || 'Invoice');
+  }
+
+  document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+  document.getElementById('panel').addEventListener('input', render);
+  document.getElementById('panel').addEventListener('change', render);
+
+  // Defaults matching the requested business-card/print invoice
+  document.getElementById('invDate').value = '2026-08-01';
+  document.getElementById('dueDate').value = '2026-08-15';
+  document.getElementById('clientName').value = 'Client Name';
+  document.getElementById('clientInfo').value = 'client@example.com';
+  document.getElementById('payDate').value = '2026-08-10';
+
+  addLineItem('Business Card Design & Print Services', 500, 0.35);
+
+  render();
+})();
+</script>
+</body>
+</html>
